@@ -70,6 +70,26 @@ pipeline {
         }
       }
     }
+    stage('DT Deploy Event') {
+      when {
+          expression {
+          return env.BRANCH_NAME ==~ 'release/.*' || env.BRANCH_NAME ==~'master'
+          }
+      }
+      steps {
+        container("curl") {
+          script {
+            def status = pushDynatraceDeploymentEvent (
+              tagRule : tagMatchRules,
+              customProperties : [
+                [key: 'Jenkins Build Number', value: "${env.BUILD_ID}"],
+                [key: 'Git commit', value: "${env.GIT_COMMIT}"]
+              ]
+            )
+          }
+        }
+      }
+    }
     stage('Run health check in dev') {
       when {
         expression {
@@ -82,10 +102,10 @@ pipeline {
 
         container('jmeter') {
           script {
-            def status = executeJMeter ( 
-              scriptName: 'jmeter/basiccheck.jmx', 
+            def status = executeJMeter (
+              scriptName: 'jmeter/basiccheck.jmx',
               resultsDir: "HealthCheck_${env.APP_NAME}",
-              serverUrl: "${env.APP_NAME}.dev", 
+              serverUrl: "${env.APP_NAME}.dev",
               serverPort: 80,
               checkPath: '/health',
               vuCount: 1,
@@ -112,9 +132,9 @@ pipeline {
         container('jmeter') {
           script {
             def status = executeJMeter (
-              scriptName: "jmeter/${env.APP_NAME}_load.jmx", 
+              scriptName: "jmeter/${env.APP_NAME}_load.jmx",
               resultsDir: "FuncCheck_${env.APP_NAME}",
-              serverUrl: "${env.APP_NAME}.dev", 
+              serverUrl: "${env.APP_NAME}.dev",
               serverPort: 80,
               checkPath: '/health',
               vuCount: 1,
